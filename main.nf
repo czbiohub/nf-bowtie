@@ -273,7 +273,7 @@ process mapping {
     """
     bowtie2 \\
         --threads $task.cpus \\
-        -x $index \\
+        -x index \\
         -q -1 ${reads[0]} -2 ${reads[1]} \\
         --very-sensitive-local \\
         -S ${pair_id}.sam \\
