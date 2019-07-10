@@ -195,6 +195,7 @@ process get_software_versions {
     echo $workflow.nextflow.version > v_nextflow.txt
     fastqc --version > v_fastqc.txt
     multiqc --version > v_multiqc.txt
+    samtools --version &> v_samtools.txt
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
