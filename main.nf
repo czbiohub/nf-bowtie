@@ -48,6 +48,11 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
+//params
+params.reads = "$baseDir/test-data/fastq/**_{R1,R2}_cdh_lzw_trim30_PF.fastq"
+params.reference = "$baseDir/test-data/fasta/**_contigs.fasta"
+params.outdir = "$baseDir/test-data/results"
+
 
 // Show help emssage
 if (params.help){
@@ -285,7 +290,7 @@ process mapping {
 }
 
 process bamify {
-    tag "Create bam file of $sample_id"
+    tag "$pair_id"
     publishDir params.outdir, mode:'copy'
 
     input:
@@ -325,22 +330,27 @@ process samtools_sort_index {
     """
 }
 
-// process count_reads { //calling foo.py in folder... naming
-// publishDir params.outdir, mode:'copy'
-//
-//   input:
-//   file bam from bam_ch
-//
-//   script:
-//   """
-//   samtools view -f 0x2 $bam | grep -v "XS:i:" | ./foo.py | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\n", $2, $1)}' > /mnt/data/outputs/bowtie_csp_counts.txt
-//   samtools view -F 260 $bam | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\n", $2, $1)}'  > /mnt/data/outputs/bowtie_all_counts.txt
-//   samtools view -f 0x2 $bam | grep -v "XS:i:" | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\n", $2, $1)}' > /mnt/data/outputs/bowtie_cs_counts.txt
-//   """
-// }
-// workflow.onComplete {
-// 	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/multiqc_report.html\n" : "Oops .. something went wrong" )
-// }
+process count_reads { //calling foo.py in folder... naming
+publishDir params.outdir, mode:'copy'
+
+  input:
+  set val(pair_id), file(bam) from bam_ch
+
+  output:
+  file "*bowtie*" into bowtie_stats
+
+  shell:
+  '''
+  samtools view -f 0x2 !{bam} | grep -v "XS:i:" | foo.py | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_csp_counts.txt
+  samtools view -F 260 !{bam} | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}'  > !{pair_id}_bowtie_all_counts.txt
+  samtools view -f 0x2 !{bam} | grep -v "XS:i:" | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_cs_counts.txt
+
+  '''
+
+}
+workflow.onComplete {
+	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/multiqc_report.html\n" : "Oops .. something went wrong" )
+}
 
 
 
@@ -377,20 +387,20 @@ process multiqc {
 /*
  * STEP 3 - Output Description HTML
  */
-process output_documentation {
-    publishDir "${params.outdir}/pipeline_info", mode: 'copy'
-
-    input:
-    file output_docs from ch_output_docs
-
-    output:
-    file "results_description.html"
-
-    script:
-    """
-    markdown_to_html.r $output_docs results_description.html
-    """
-}
+// process output_documentation {
+//     publishDir "${params.outdir}/pipeline_info", mode: 'copy'
+//
+//     input:
+//     file output_docs from ch_output_docs
+//
+//     output:
+//     file "results_description.html"
+//
+//     script:
+//     """
+//     markdown_to_html.r $output_docs results_description.html
+//     """
+// }
 
 
 
