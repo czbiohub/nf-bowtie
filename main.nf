@@ -42,7 +42,7 @@ def helpMessage() {
  */
 //params
 params.reads = "$baseDir/test-data/fastq/**_{R1,R2}_cdh_lzw_trim30_PF.fastq"
-params.reference = "$baseDir/test-data/fasta/**_contigs.fasta"
+params.reference = "$baseDir/test-data/fasta/**contigs.fasta"
 params.outdir = "$baseDir/test-data/results"
 
 
@@ -220,32 +220,30 @@ process fastqc {
 }
 
 
-process build_reference {
-publishDir params.outdir, mode:'copy'
+Channel
+    .fromPath(params.reference)
+    .collectFile(name: 'sample.txt', newLine: false)
+    .set {test_ch}
+    // .subscribe {
+    //     println "Entries are saved to file: $it"
+    // }
 
-output:
-file 'reference' into reference_ch
 
-script:
-"""
-cat ${params.reference} > reference
-"""
-}
 
 
 process index {
 
-input:
-file reference from reference_ch
+  input:
+  file reference from test_ch
 
-output:
-file 'index*' into index_ch
+  output:
+  file 'index*' into index_ch
 
-script:
-"""
-bowtie2-build $reference index
-"""
-  }
+  script:
+  """
+  bowtie2-build $reference index
+  """
+    }
 
 
 Channel
