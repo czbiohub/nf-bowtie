@@ -196,11 +196,37 @@ process get_software_versions {
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
+/*
+ * STEP 2 - Reference Building
+ */
+Channel
+    .fromPath(params.reference)
+    .collectFile(name: 'sample.txt', newLine: false)
+    .set {reference_ch}
 
 
+process index {
+
+  input:
+  file reference from reference_ch
+
+  output:
+  file 'index*' into index_ch
+
+  script:
+  """
+  bowtie2-build $reference index
+  """
+    }
+
+
+Channel
+  .fromFilePairs( params.reads )
+  .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
+  .into { read_pairs_ch; read_pairs2_ch }
 
 /*
- * STEP 1 - FastQC
+ * STEP 2 - FastQC
  */
 process fastqc {
     tag "$name"
@@ -219,39 +245,6 @@ process fastqc {
     """
 }
 
-
-Channel
-    .fromPath(params.reference)
-    .collectFile(name: 'sample.txt', newLine: false)
-    .set {test_ch}
-    // .subscribe {
-    //     println "Entries are saved to file: $it"
-    // }
-
-
-
-
-process index {
-
-  input:
-  file reference from test_ch
-
-  output:
-  file 'index*' into index_ch
-
-  script:
-  """
-  bowtie2-build $reference index
-  """
-    }
-
-
-Channel
-  .fromFilePairs( params.reads )
-  .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
-  .into { read_pairs_ch; read_pairs2_ch }
-  //read_pairs_ch.println()
-  //read_pairs2_ch.println()
 
 process mapping {
     tag "$pair_id"
