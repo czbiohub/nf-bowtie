@@ -198,6 +198,13 @@ process get_software_versions {
 /*
  * STEP 1 - FastQC
  */
+params.skip = false
+
+Channel.fromPath(params.reads).set{ input_ch }
+
+(read_files_fastqc) = ( params.skip
+                  ? [Channel.empty(), input_ch]
+                  : [input_ch, Channel.empty()] )
 process fastqc {
     tag "$name"
     publishDir "${params.outdir}/fastqc", mode: 'copy',
