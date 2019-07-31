@@ -40,10 +40,6 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
-//params
-params.reads = "$baseDir/test-data/fastq/**_{R1,R2}_cdh_lzw_trim30_PF.fastq"
-params.reference = "$baseDir/test-data/fasta/**_contigs.fasta"
-params.outdir = "$baseDir/test-data/results"
 
 
 // Show help emssage
@@ -202,22 +198,22 @@ process get_software_versions {
 /*
  * STEP 1 - FastQC
  */
-process fastqc {
-    tag "$name"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
-        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-
-    input:
-    set val(name), file(reads) from read_files_fastqc
-
-    output:
-    file "*_fastqc.{zip,html}" into fastqc_results
-
-    script:
-    """
-    fastqc -q $reads
-    """
-}
+// process fastqc {
+//     tag "$name"
+//     publishDir "${params.outdir}/fastqc", mode: 'copy',
+//         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
+//
+//     input:
+//     set val(name), file(reads) from read_files_fastqc
+//
+//     output:
+//     file "*_fastqc.{zip,html}" into fastqc_results
+//
+//     script:
+//     """
+//     fastqc -q $reads
+//     """
+// }
 
 /*
  * STEP 2 - Align Samples Using Bowtie
@@ -260,6 +256,7 @@ Channel
 
 process mapping {
     tag "$pair_id"
+    publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
 
     input:
     file index from index_ch
@@ -352,30 +349,30 @@ workflow.onComplete {
 /*
  * STEP 3 - MultiQC
  */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: 'copy'
-
-    input:
-    file multiqc_config from ch_multiqc_config
-    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-    file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
-    file ('software_versions/*') from software_versions_yaml.collect()
-    file ('samtools/*') from samtools_stats.collect().ifEmpty([])
-    file workflow_summary from create_workflow_summary(summary)
-
-    output:
-    file "*multiqc_report.html" into multiqc_report
-    file "*_data"
-    file "multiqc_plots"
-
-    script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-    """
-    multiqc -f $rtitle $rfilename --config $multiqc_config .
-    """
-}
+// process multiqc {
+//     publishDir "${params.outdir}/MultiQC", mode: 'copy'
+//
+//     input:
+//     file multiqc_config from ch_multiqc_config
+//     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+//     file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
+//     file ('software_versions/*') from software_versions_yaml.collect()
+//     file ('samtools/*') from samtools_stats.collect().ifEmpty([])
+//     file workflow_summary from create_workflow_summary(summary)
+//
+//     output:
+//     file "*multiqc_report.html" into multiqc_report
+//     file "*_data"
+//     file "multiqc_plots"
+//
+//     script:
+//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+//     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+//     """
+//     multiqc -f $rtitle $rfilename --config $multiqc_config .
+//     """
+// }
 
 
 
