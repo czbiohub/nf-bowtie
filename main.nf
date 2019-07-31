@@ -99,19 +99,19 @@ if(params.readPaths){
             .from(params.readPaths)
             .map { row -> [ row[0], [file(row[1][0])]] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into { read_files_fastqc; read_files_trimming }
+            .into { read_files_fastqc; read_files_trimming; input_ch }
     } else {
         Channel
             .from(params.readPaths)
             .map { row -> [ row[0], [file(row[1][0]), file(row[1][1])]] }
             .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
-            .into { read_files_fastqc; read_files_trimming }
+            .into { read_files_fastqc; read_files_trimming; input_ch  }
     }
 } else {
     Channel
         .fromFilePairs( params.reads, size: params.singleEnd ? 1 : 2 )
         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.reads}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --singleEnd on the command line." }
-        .into { read_files_fastqc; read_files_trimming }
+        .into { read_files_fastqc; read_files_trimming; input_ch  }
 }
 
 
@@ -198,11 +198,8 @@ process get_software_versions {
 /*
  * STEP 1 - FastQC
  */
-params.skip = false
-
-Channel.fromPath(params.reads).set{ input_ch }
-
-(read_files_fastqc) = ( params.skip
+params.skip_fastqc = false
+(read_files_fastqc) = ( params.skip_fastqc
                   ? [Channel.empty(), input_ch]
                   : [input_ch, Channel.empty()] )
 process fastqc {
@@ -295,7 +292,7 @@ process bamify {
     set val(pair_id), file(sam) from aligned_sam
 
     output:
-    set val(pair_id), file("${pair_id}.bam") into bam_ch, bam_stats_ch
+    set val(pair_id), file("${pair_id}.bam") into bam_ch, bam_stats_ch, input2_ch
 
 
     script:
@@ -327,6 +324,11 @@ process samtools_sort_index {
     samtools idxstats ${pair_id}.sorted.bam > ${pair_id}.idxstats
     """
 }
+
+params.skip_count = true
+(bam_ch) = ( params.skip_count
+                  ? [Channel.empty(), input2_ch]
+                  : [input2_ch, Channel.empty()] )
 
 process count_reads { //calling foo.py in folder... naming
   tag "$pair_id"
