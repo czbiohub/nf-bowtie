@@ -302,7 +302,7 @@ process bamify {
 }
 
 process samtools_sort_index {
-    tag "Sort and index bam files"
+    tag "Sort and index bam file - $pair_id"
     publishDir "${params.outdir}/samtools", mode:'copy'
 
     input:
