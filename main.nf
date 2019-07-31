@@ -219,7 +219,9 @@ process fastqc {
     """
 }
 
-
+/*
+ * STEP 2 - Align Samples Using Bowtie
+ */
 fasta_ch = Channel.fromPath(params.reference)
 process make_reference {
 
@@ -348,7 +350,7 @@ workflow.onComplete {
 
 
 /*
- * STEP 2 - MultiQC
+ * STEP 3 - MultiQC
  */
 process multiqc {
     publishDir "${params.outdir}/MultiQC", mode: 'copy'
