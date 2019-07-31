@@ -40,10 +40,6 @@ def helpMessage() {
 /*
  * SET UP CONFIGURATION VARIABLES
  */
-//params
-params.reads = "$baseDir/test-data/fastq/**_{R1,R2}_cdh_lzw_trim30_PF.fastq"
-params.reference = "$baseDir/test-data/fasta/**_contigs.fasta"
-params.outdir = "$baseDir/test-data/results"
 
 
 // Show help emssage
@@ -219,44 +215,47 @@ process fastqc {
     """
 }
 
+/*
+ * STEP 2 - Align Samples Using Bowtie
+ */
+fasta_ch = Channel.fromPath(params.reference)
+process make_reference {
 
-process build_reference {
-publishDir params.outdir, mode:'copy'
+  input:
+  file(fastas) from fasta_ch.collect()
 
-output:
-file 'reference' into reference_ch
+  output:
+  file 'reference' into reference_ch
 
-script:
-"""
-cat ${params.reference} > reference
-"""
-}
-
+  script:
+  """
+  cat ${fastas} > reference
+  """
+    }
 
 process index {
 
-input:
-file reference from reference_ch
+  input:
+  file reference from reference_ch
 
-output:
-file 'index*' into index_ch
+  output:
+  file 'index*' into index_ch
 
-script:
-"""
-bowtie2-build $reference index
-"""
-  }
-
+  script:
+  """
+  bowtie2-build $reference index
+  """
+      }
 
 Channel
   .fromFilePairs( params.reads )
   .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
   .into { read_pairs_ch; read_pairs2_ch }
-  //read_pairs_ch.println()
-  //read_pairs2_ch.println()
+
 
 process mapping {
     tag "$pair_id"
+    publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
 
     input:
     file index from index_ch
@@ -347,7 +346,7 @@ workflow.onComplete {
 
 
 /*
- * STEP 2 - MultiQC
+ * STEP 3 - MultiQC
  */
 process multiqc {
     publishDir "${params.outdir}/MultiQC", mode: 'copy'
