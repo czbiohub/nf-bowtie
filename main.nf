@@ -202,81 +202,23 @@ process get_software_versions {
 /*
  * STEP 1 - FastQC
  */
-// process fastqc {
-//     tag "$name"
-//     publishDir "${params.outdir}/fastqc", mode: 'copy',
-//         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-//
-//     input:
-//     set val(name), file(reads) from read_files_fastqc
-//
-//     output:
-//     file "*_fastqc.{zip,html}" into fastqc_results
-//
-//     script:
-//     """
-//     fastqc -q $reads
-//     """
-// }
+process fastqc {
+    tag "$name"
+    publishDir "${params.outdir}/fastqc", mode: 'copy',
+        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
 
+    input:
+    set val(name), file(reads) from read_files_fastqc
 
-// Channel
-//     .fromPath(params.reference)
-//     .collectFile(name: "${params.outdir}/sample.fasta", newLine: false)
-//
+    output:
+    file "*_fastqc.{zip,html}" into fastqc_results
 
+    script:
+    """
+    fastqc -q $reads
+    """
+}
 
-// process build_reference {
-// publishDir params.outdir, mode:'copy'
-//
-//   output:
-//   file 'reference' into reference_ch
-//
-//   script:
-//   """
-//   cat ${params.reference} > reference
-//   """
-//   }
-
-// reference_ch = Channel.fromPath( "${params.outdir}/sample.fasta" )
-
-// process index {
-//
-//   // input:
-//   // file reference from reference_ch
-//
-//   output:
-//   file 'index*' into index_ch
-//
-//   script:
-//   """
-//   cat ${params.reference} > reference.fasta
-//   bowtie2-build reference.fasta index
-//   """
-//     }
-// Channel
-//     .fromPath(params.reference)
-//     .collectFile(name: "${params.outdir}/sample.fasta", newLine: false)
-//
-//
-// params.in = "${params.outdir}/sample.fasta"
-//
-// sequences = file(params.in)
-//
-//
-// process index {
-//
-//   input:
-//   file 'input.fa' from sequences
-//
-//   output:
-//   file 'index*' into index_ch
-//
-//   script:
-//   """
-//   bowtie2-build input.fa index
-//   """
-//     }
 
 fasta_ch = Channel.fromPath(params.reference)
 process make_reference {
@@ -408,30 +350,30 @@ workflow.onComplete {
 /*
  * STEP 2 - MultiQC
  */
-// process multiqc {
-//     publishDir "${params.outdir}/MultiQC", mode: 'copy'
-//
-//     input:
-//     file multiqc_config from ch_multiqc_config
-//     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-//     file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
-//     file ('software_versions/*') from software_versions_yaml.collect()
-//     file ('samtools/*') from samtools_stats.collect().ifEmpty([])
-//     file workflow_summary from create_workflow_summary(summary)
-//
-//     output:
-//     file "*multiqc_report.html" into multiqc_report
-//     file "*_data"
-//     file "multiqc_plots"
-//
-//     script:
-//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-//     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-//     """
-//     multiqc -f $rtitle $rfilename --config $multiqc_config .
-//     """
-// }
+process multiqc {
+    publishDir "${params.outdir}/MultiQC", mode: 'copy'
+
+    input:
+    file multiqc_config from ch_multiqc_config
+    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+    file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
+    file ('software_versions/*') from software_versions_yaml.collect()
+    file ('samtools/*') from samtools_stats.collect().ifEmpty([])
+    file workflow_summary from create_workflow_summary(summary)
+
+    output:
+    file "*multiqc_report.html" into multiqc_report
+    file "*_data"
+    file "multiqc_plots"
+
+    script:
+    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+    """
+    multiqc -f $rtitle $rfilename --config $multiqc_config .
+    """
+}
 
 
 
