@@ -194,31 +194,12 @@ process get_software_versions {
 }
 
 
-
-/*
- * STEP 1 - FastQC
- */
-params.skip_fastqc = false
-(read_files_fastqc) = ( params.skip_fastqc
-                  ? [Channel.empty(), input_ch]
-                  : [input_ch, Channel.empty()] )
-process fastqc {
-    tag "$name"
-    publishDir "${params.outdir}/fastqc", mode: 'copy',
-        saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
-
-    input:
-    set val(name), file(reads) from read_files_fastqc
-
-    output:
-    file "*_fastqc.{zip,html}" into fastqc_results
-
-    script:
-    """
-    fastqc -q $reads
-    """
-}
-
+Channel
+  .fromPath("test-data/contigs/*", type:"dir")
+  .map{ f -> tuple(f.name, file(f))}
+  //.println()
+  .set{ samples_ch }
+  .println()
 /*
  * STEP 2 - Align Samples Using Bowtie
  */
