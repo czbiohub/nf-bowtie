@@ -242,7 +242,7 @@ process mapping {
       publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
 
       input:
-      file index from index_ch
+      file index from index_ch.collect()
       set pair_id, file(reads) from read_pairs_ch
 
       output:
