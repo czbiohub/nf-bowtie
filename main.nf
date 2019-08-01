@@ -199,10 +199,11 @@ process get_software_versions {
     """
 }
 
-// Define regular variables so that they can be overwritten
+// Define bowtie variables so that they can be overwritten
 params.max_length = 500
 max_length = params.max_length
-
+params.preset_sensitivity = '--very-sensitive-local'
+preset_sensitivity= params.preset_sensitivity
 /*
  * STEP 1 - FastQC
  */
@@ -264,7 +265,10 @@ Channel
   .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
   .into { read_pairs_ch; read_pairs2_ch }
 
-c_r1 = max_length > 0 ? "${max_length}" : ''
+// Bowtie variable swap-out
+X = max_length > 0 ? "${max_length}" : ''
+sensitivity = preset_sensitivity  ? "${preset_sensitivity}" : ''
+
 process mapping {
     tag "$pair_id"
     publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
@@ -283,8 +287,8 @@ process mapping {
         --threads $task.cpus \\
         -x index \\
         -q -1 ${reads[0]} -2 ${reads[1]} \\
-        --very-sensitive-local \\
-        -X $c_r1 \\
+        $sensitivity \\
+        -X $X \\
         -S ${pair_id}.sam \\
         --no-unal \\
         2>&1 | tee ${pair_id}.log
