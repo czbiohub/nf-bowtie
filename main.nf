@@ -26,6 +26,11 @@ def helpMessage() {
       --singleEnd                   Specifies that the input is single end reads
     References                      If not specified in the configuration file or you wish to overwrite any of the references.
       --fasta                       Path to Fasta reference
+    Skip options:
+      --skip_fastqc                 default = false. true will allow fastqc to be skipped
+      --skip_count                  default = true. false will allow counting to happen
+    Bowtie options:
+      --length_max [int]
     Other options:
       --outdir                      The output directory where the results will be saved
       --email                       Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits
@@ -115,6 +120,7 @@ if(params.readPaths){
 }
 
 
+
 // Header log info
 log.info nfcoreHeader()
 def summary = [:]
@@ -193,7 +199,9 @@ process get_software_versions {
     """
 }
 
-
+// Define regular variables so that they can be overwritten
+params.max_length = 500
+max_length = params.max_length
 
 /*
  * STEP 1 - FastQC
@@ -256,7 +264,7 @@ Channel
   .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
   .into { read_pairs_ch; read_pairs2_ch }
 
-
+c_r1 = max_length > 0 ? "${max_length}" : ''
 process mapping {
     tag "$pair_id"
     publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
@@ -276,6 +284,7 @@ process mapping {
         -x index \\
         -q -1 ${reads[0]} -2 ${reads[1]} \\
         --very-sensitive-local \\
+        -X $c_r1 \\
         -S ${pair_id}.sam \\
         --no-unal \\
         2>&1 | tee ${pair_id}.log
