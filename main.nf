@@ -267,7 +267,7 @@ Channel
 
 // Bowtie variable swap-out
 X = max_length > 0 ? "${max_length}" : ''
-sensitivity = preset_sensitivity  ? "${preset_sensitivity}" : ''
+sensitivity = preset_sensitivity ? "${preset_sensitivity}" : ''
 
 process mapping {
     tag "$pair_id"
