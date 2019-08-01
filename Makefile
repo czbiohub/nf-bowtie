@@ -15,3 +15,6 @@ aws:
 
 aws_resume:
 	nextflow run main.nf -profile czbiohub_aws -resume
+
+test2:
+	nextflow run main2.nf -profile docker --skip_fastqc
