@@ -277,15 +277,17 @@ process index {
   """
       }  }
 
-if(params.reference_type == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
+params.samples = "$baseDir/test-data/contigs"
+params.reference = "$baseDir/test-data/contigs/*"
+if(params.reference_type == 'embedded_folder'){
   Channel
-    .fromPath("test-data/contigs/*", type:"dir")
+    .fromPath(params.reference, type:"dir")
     .map{ f -> tuple(f.name, file(f))}
     .set{ samples_ch }
 
   process index_folders {
     tag "${pair_id}"
-    publishDir "./test4", pattern: 'index_*'
+    publishDir "./test5", pattern: 'index_*'
 
     input:
     set val(pair_id) from samples_ch
