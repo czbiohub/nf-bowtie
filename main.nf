@@ -227,207 +227,239 @@ process fastqc {
 /*
  * STEP 2 - Align Samples Using Bowtie
  */
+ // if(params.reference_input == 'single_file'){
+ // fasta_ch = Channel.fromFile(params.reference)
+ // process make_reference {
+ //
+ //   input:
+ //   file fasta from params.reference
+ //
+ //   output:
+ //   file 'reference' into reference_ch
+ //
+ //   script:
+ //   """
+ //   cat ${fasta} > reference
+ //   """
+ //     }
 
+params.fasta = "./test-data/fasta/CMS001_040_Ra_S21_contigs_test.fasta"
+fasta = Channel.fromPath(params.fasta)
+ process index {
+   tag "single file"
+   publishDir "./test4", pattern: 'index*'
+   input:
+   file fa from fasta
+   //
+   // output:
+   // file 'index*' into index_ch
 
-if(params.reference_input == 'folder'){
-fasta_ch = Channel.fromPath(params.reference)
-process make_reference {
-
-  input:
-  file(fastas) from fasta_ch.collect()
-
-  output:
-  file 'reference' into reference_ch
-
-  script:
-  """
-  cat ${fastas} > reference
-  """
-    }
-
-
-process index {
-
-  input:
-  file reference from reference_ch
-
-  output:
-  file 'index*' into index_ch
-
-  script:
-  """
-  bowtie2-build $reference index
-  """
-      }
-  }
-if(params.reference_input == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
-  Channel
-    .fromPath(params.reference, type:"dir")
-    .map{ f -> tuple(f.name, file(f))}
-    .set{ samples_ch }
-
-  process index_folders {
-    tag "${pair_id}"
-    publishDir "./test4", pattern: 'index_*'
-
-    input:
-    set val(pair_id) from samples_ch
-
-    output:
-    file 'index*' into index_ch, index2_ch
-
-    script:
-    """
-    bowtie2-build "${params.samples}/${pair_id}/contigs.fasta" index_${pair_id}
-    """
-        }
-      }
-Channel
-  .fromFilePairs( params.reads )
-  .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
-  .into { read_pairs_ch; read_pairs2_ch }
-
-
-process mapping {
-    tag "$pair_id"
-    publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
-
-    input:
-    file index from index_ch.collect()
-    set pair_id, file(reads) from read_pairs_ch
-
-
-    output:
-    set val(pair_id), file("${pair_id}.sam") into aligned_sam
-    file "${pair_id}.log" into bowtie_logs
-
-    script:
-
-    if(params.reference_input == 'embedded_folder'){
-    """
-    bowtie2 \\
-        --threads $task.cpus \\
-        -x index_${pair_id} \\
-        -q -1 ${reads[0]} -2 ${reads[1]} \\
-        --very-sensitive-local \\
-        -S ${pair_id}.sam \\
-        --no-unal \\
-        2>&1 | tee ${pair_id}.log
-    """
-        } else {
-    """
-        bowtie2 \\
-            --threads $task.cpus \\
-            -x index \\
-            -q -1 ${reads[0]} -2 ${reads[1]} \\
-            --very-sensitive-local \\
-            -S ${pair_id}.sam \\
-            --no-unal \\
-            2>&1 | tee ${pair_id}.log
-    """
-        }
-
-}
-
-
-
-process bamify {
-    tag "$pair_id"
-    publishDir params.outdir, mode:'copy'
-
-    input:
-    set val(pair_id), file(sam) from aligned_sam
-
-    output:
-    set val(pair_id), file("${pair_id}.bam") into bam_ch, bam_stats_ch, input2_ch
-
-
-    script:
-    """
-    samtools view -S -b $sam > ${pair_id}.bam
-    """
-}
-
-process samtools_sort_index {
-    tag "Sort and index bam file - $pair_id"
-    publishDir "${params.outdir}/samtools", mode:'copy'
-
-    input:
-    set val(pair_id), file(bam) from bam_stats_ch
-
-    output:
-    file "${pair_id}.sorted.bam" into sorted_bam
-    file "*stat*" into samtools_stats
-
-    script:
-    """
-    samtools sort \\
-            $bam \\
-            -@ ${task.cpus} \\
-            -o ${pair_id}.sorted.bam
-    samtools index ${pair_id}.sorted.bam
-    samtools flagstat ${pair_id}.sorted.bam > ${pair_id}.flagstats
-    samtools stats ${pair_id}.sorted.bam > ${pair_id}.stats
-    samtools idxstats ${pair_id}.sorted.bam > ${pair_id}.idxstats
-    """
-}
-
-params.skip_count = true
-(bam_ch) = ( params.skip_count
-                  ? [Channel.empty(), input2_ch]
-                  : [input2_ch, Channel.empty()] )
-
-process count_reads { //calling foo.py in folder... naming
-  tag "$pair_id"
-  publishDir params.outdir, mode:'copy'
-
-  input:
-  set val(pair_id), file(bam) from bam_ch
-
-  output:
-  file "*bowtie*" into bowtie_stats
-
-  shell:
-  '''
-  samtools view -f 0x2 !{bam} | grep -v "XS:i:" | foo.py | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_csp_counts.txt
-  samtools view -F 260 !{bam} | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}'  > !{pair_id}_bowtie_all_counts.txt
-  samtools view -f 0x2 !{bam} | grep -v "XS:i:" | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_cs_counts.txt
-  '''
-
-}
-workflow.onComplete {
-	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/MultiQC/multiqc_report.html\n" : "Oops .. something went wrong" )
-}
-
-
-
-/*
- * STEP 3 - MultiQC
- */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: 'copy'
-
-    input:
-    file multiqc_config from ch_multiqc_config
-    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-    file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
-    file ('software_versions/*') from software_versions_yaml.collect()
-    file ('samtools/*') from samtools_stats.collect().ifEmpty([])
-    file workflow_summary from create_workflow_summary(summary)
-
-    output:
-    file "*multiqc_report.html" into multiqc_report
-    file "*_data"
-    file "multiqc_plots"
-
-    script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-    """
-    multiqc -f $rtitle $rfilename --config $multiqc_config .
-    """
-}
+   script:
+   """
+   bowtie2-build $fa index
+   """
+       }
+   // }
+//
+// if(params.reference_input == 'folder'){
+// fasta_ch = Channel.fromPath(params.reference)
+// process make_reference {
+//
+//   input:
+//   file(fastas) from fasta_ch.collect()
+//
+//   output:
+//   file 'reference' into reference_ch
+//
+//   script:
+//   """
+//   cat ${fastas} > reference
+//   """
+//     }
+//
+//
+// process index {
+//
+//   input:
+//   file reference from reference_ch
+//
+//   output:
+//   file 'index*' into index_ch
+//
+//   script:
+//   """
+//   bowtie2-build $reference index
+//   """
+//       }
+//   }
+// if(params.reference_input == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
+//   Channel
+//     .fromPath(params.reference, type:"dir")
+//     .map{ f -> tuple(f.name, file(f))}
+//     .set{ samples_ch }
+//
+//   process index_folders {
+//     tag "${pair_id}"
+//     publishDir "./test4", pattern: 'index_*'
+//
+//     input:
+//     set val(pair_id) from samples_ch
+//
+//     output:
+//     file 'index*' into index_ch, index2_ch
+//
+//     script:
+//     """
+//     bowtie2-build "${params.samples}/${pair_id}/contigs.fasta" index_${pair_id}
+//     """
+//         }
+//       }
+// Channel
+//   .fromFilePairs( params.reads )
+//   .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
+//   .into { read_pairs_ch; read_pairs2_ch }
+//
+//
+// process mapping {
+//     tag "$pair_id"
+//     publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
+//
+//     input:
+//     file index from index_ch.collect()
+//     set pair_id, file(reads) from read_pairs_ch
+//
+//
+//     output:
+//     set val(pair_id), file("${pair_id}.sam") into aligned_sam
+//     file "${pair_id}.log" into bowtie_logs
+//
+//     script:
+//
+//     if(params.reference_input == 'embedded_folder'){
+//     """
+//     bowtie2 \\
+//         --threads $task.cpus \\
+//         -x index_${pair_id} \\
+//         -q -1 ${reads[0]} -2 ${reads[1]} \\
+//         --very-sensitive-local \\
+//         -S ${pair_id}.sam \\
+//         --no-unal \\
+//         2>&1 | tee ${pair_id}.log
+//     """
+//         } else {
+//     """
+//         bowtie2 \\
+//             --threads $task.cpus \\
+//             -x index \\
+//             -q -1 ${reads[0]} -2 ${reads[1]} \\
+//             --very-sensitive-local \\
+//             -S ${pair_id}.sam \\
+//             --no-unal \\
+//             2>&1 | tee ${pair_id}.log
+//     """
+//         }
+//
+// }
+//
+//
+//
+// process bamify {
+//     tag "$pair_id"
+//     publishDir params.outdir, mode:'copy'
+//
+//     input:
+//     set val(pair_id), file(sam) from aligned_sam
+//
+//     output:
+//     set val(pair_id), file("${pair_id}.bam") into bam_ch, bam_stats_ch, input2_ch
+//
+//
+//     script:
+//     """
+//     samtools view -S -b $sam > ${pair_id}.bam
+//     """
+// }
+//
+// process samtools_sort_index {
+//     tag "Sort and index bam file - $pair_id"
+//     publishDir "${params.outdir}/samtools", mode:'copy'
+//
+//     input:
+//     set val(pair_id), file(bam) from bam_stats_ch
+//
+//     output:
+//     file "${pair_id}.sorted.bam" into sorted_bam
+//     file "*stat*" into samtools_stats
+//
+//     script:
+//     """
+//     samtools sort \\
+//             $bam \\
+//             -@ ${task.cpus} \\
+//             -o ${pair_id}.sorted.bam
+//     samtools index ${pair_id}.sorted.bam
+//     samtools flagstat ${pair_id}.sorted.bam > ${pair_id}.flagstats
+//     samtools stats ${pair_id}.sorted.bam > ${pair_id}.stats
+//     samtools idxstats ${pair_id}.sorted.bam > ${pair_id}.idxstats
+//     """
+// }
+//
+// params.skip_count = true
+// (bam_ch) = ( params.skip_count
+//                   ? [Channel.empty(), input2_ch]
+//                   : [input2_ch, Channel.empty()] )
+//
+// process count_reads { //calling foo.py in folder... naming
+//   tag "$pair_id"
+//   publishDir params.outdir, mode:'copy'
+//
+//   input:
+//   set val(pair_id), file(bam) from bam_ch
+//
+//   output:
+//   file "*bowtie*" into bowtie_stats
+//
+//   shell:
+//   '''
+//   samtools view -f 0x2 !{bam} | grep -v "XS:i:" | foo.py | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_csp_counts.txt
+//   samtools view -F 260 !{bam} | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}'  > !{pair_id}_bowtie_all_counts.txt
+//   samtools view -f 0x2 !{bam} | grep -v "XS:i:" | cut -f 3 | sort | uniq -c | awk '{printf("%s\t%s\\n", $2, $1)}' > !{pair_id}_bowtie_cs_counts.txt
+//   '''
+//
+// }
+// workflow.onComplete {
+// 	println ( workflow.success ? "\nDone! Open the following report in your browser --> $params.outdir/MultiQC/multiqc_report.html\n" : "Oops .. something went wrong" )
+// }
+//
+//
+//
+// /*
+//  * STEP 3 - MultiQC
+//  */
+// process multiqc {
+//     publishDir "${params.outdir}/MultiQC", mode: 'copy'
+//
+//     input:
+//     file multiqc_config from ch_multiqc_config
+//     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+//     file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
+//     file ('software_versions/*') from software_versions_yaml.collect()
+//     file ('samtools/*') from samtools_stats.collect().ifEmpty([])
+//     file workflow_summary from create_workflow_summary(summary)
+//
+//     output:
+//     file "*multiqc_report.html" into multiqc_report
+//     file "*_data"
+//     file "multiqc_plots"
+//
+//     script:
+//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+//     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+//     """
+//     multiqc -f $rtitle $rfilename --config $multiqc_config .
+//     """
+// }
 
 
 
