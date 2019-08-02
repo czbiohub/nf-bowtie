@@ -262,7 +262,7 @@ process index {
   }
 if(params.reference_input == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
   Channel
-    .fromPath("test-data/contigs/*", type:"dir")
+    .fromPath(params.reference, type:"dir")
     .map{ f -> tuple(f.name, file(f))}
     .set{ samples_ch }
 
