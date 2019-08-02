@@ -48,8 +48,7 @@ if (params.help){
     exit 0
 }
 
-// Making sample input parameters
-params.reference_input = 'folder'
+
 
 
 
@@ -229,7 +228,25 @@ process fastqc {
  */
 
 
-if(params.reference_input == 'folder'){
+if(params.reference_type == 'single_file'){
+fasta = Channel.fromPath(params.fasta)
+ process index_single {
+   tag "single file"
+   publishDir "./test4", pattern: 'index*'
+   input:
+   file fa from fasta
+
+   output:
+   file 'index*' into index_ch
+
+   script:
+   """
+   bowtie2-build $fa index
+   """
+       }   }
+
+
+if(params.reference_type == 'folder'){
 fasta_ch = Channel.fromPath(params.reference)
 process make_reference {
 
@@ -258,9 +275,9 @@ process index {
   """
   bowtie2-build $reference index
   """
-      }
-  }
-if(params.reference_input == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
+      }  }
+
+if(params.reference_type == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
   Channel
     .fromPath("test-data/contigs/*", type:"dir")
     .map{ f -> tuple(f.name, file(f))}
@@ -303,7 +320,7 @@ process mapping {
 
     script:
 
-    if(params.reference_input == 'embedded_folder'){
+    if(params.reference_type == 'embedded_folder'){
     """
     bowtie2 \\
         --threads $task.cpus \\
@@ -326,7 +343,6 @@ process mapping {
             2>&1 | tee ${pair_id}.log
     """
         }
-
 }
 
 
