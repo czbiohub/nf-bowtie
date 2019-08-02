@@ -48,6 +48,11 @@ if (params.help){
     exit 0
 }
 
+// Making sample input parameters
+params.reference_input = 'folder'
+
+
+
 // Check if genome exists in the config file
 if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
@@ -222,6 +227,9 @@ process fastqc {
 /*
  * STEP 2 - Align Samples Using Bowtie
  */
+
+
+if(params.reference_input == 'folder'){
 fasta_ch = Channel.fromPath(params.reference)
 process make_reference {
 
@@ -237,6 +245,7 @@ process make_reference {
   """
     }
 
+
 process index {
 
   input:
@@ -250,7 +259,29 @@ process index {
   bowtie2-build $reference index
   """
       }
+  }
+if(params.reference_input == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
+  Channel
+    .fromPath("test-data/contigs/*", type:"dir")
+    .map{ f -> tuple(f.name, file(f))}
+    .set{ samples_ch }
 
+  process index_folders {
+    tag "${pair_id}"
+    publishDir "./test4", pattern: 'index_*'
+
+    input:
+    set val(pair_id) from samples_ch
+
+    output:
+    file 'index*' into index_ch, index2_ch
+
+    script:
+    """
+    bowtie2-build "${params.samples}/${pair_id}/contigs.fasta" index_${pair_id}
+    """
+        }
+      }
 Channel
   .fromFilePairs( params.reads )
   .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
@@ -262,27 +293,43 @@ process mapping {
     publishDir "${params.outdir}/bowtie_logs", pattern: '*.log'
 
     input:
-    file index from index_ch
+    file index from index_ch.collect()
     set pair_id, file(reads) from read_pairs_ch
 
+
     output:
-    set val(pair_id), file("${pair_id}.sam") into aligned_sam //want the sam file pumped to channel only and log file saved
+    set val(pair_id), file("${pair_id}.sam") into aligned_sam
     file "${pair_id}.log" into bowtie_logs
 
     script:
+
+    if(params.reference_input == 'embedded_folder'){
     """
     bowtie2 \\
         --threads $task.cpus \\
-        -x index \\
+        -x index_${pair_id} \\
         -q -1 ${reads[0]} -2 ${reads[1]} \\
         --very-sensitive-local \\
         -S ${pair_id}.sam \\
         --no-unal \\
         2>&1 | tee ${pair_id}.log
     """
-
+        } else {
+    """
+        bowtie2 \\
+            --threads $task.cpus \\
+            -x index \\
+            -q -1 ${reads[0]} -2 ${reads[1]} \\
+            --very-sensitive-local \\
+            -S ${pair_id}.sam \\
+            --no-unal \\
+            2>&1 | tee ${pair_id}.log
+    """
+        }
 
 }
+
+
 
 process bamify {
     tag "$pair_id"
