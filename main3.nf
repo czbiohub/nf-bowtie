@@ -230,7 +230,7 @@ process index_folders {
       }
 
 // index_ch = Channel.fromPath("./test4/**")
-index2_ch.println()
+// index2_ch.println()
 Channel
     .fromFilePairs( params.reads )
     .ifEmpty { error "Oops! Cannot find any file matching: ${params.reads}"  }
