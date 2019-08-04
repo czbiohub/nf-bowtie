@@ -397,7 +397,7 @@ params.skip_count = true
 
 process count_reads { //calling foo.py in folder... naming
   tag "$pair_id"
-  publishDir params.outdir, mode:'copy'
+  publishDir "${params.outdir}/counts", mode:'copy'
 
   input:
   set val(pair_id), file(bam) from bam_ch
