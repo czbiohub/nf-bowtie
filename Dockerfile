@@ -12,3 +12,7 @@ ENV PATH /opt/conda/envs/nf-core-bowtie-1.0dev/bin:$PATH
 ADD foo.py /usr/local/bin/foo.py
 RUN chmod +x /usr/local/bin/foo.py
 CMD ["/usr/local/bin/foo.py"]
+
+
+# figure this out
+# https://github.com/CancerCollaboratory/dockstore-tool-bamstats/blob/develop/Dockerfile

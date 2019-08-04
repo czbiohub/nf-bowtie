@@ -374,7 +374,7 @@ process samtools_sort_index {
     set val(pair_id), file(bam) from bam_stats_ch
 
     output:
-    file "${pair_id}.sorted.bam" into sorted_bam
+    file "${pair_id}.sorted.bam" into sorted_bam, sorted_bam2
     file "*stat*" into samtools_stats
 
     script:
@@ -389,6 +389,22 @@ process samtools_sort_index {
     samtools idxstats ${pair_id}.sorted.bam > ${pair_id}.idxstats
     """
 }
+
+process bamstats {
+    tag "bamstats - $pair_id"
+    publishDir "${params.outdir}/bamstats", mode:'copy'
+
+    input:
+    set val(pair_id), file(sorted_bam) from sorted_bam2
+
+    output:
+    file 'bamstats_report.zip'
+
+    """
+    bash /usr/local/bin/bamstats $sorted_bam
+    """
+
+  }
 
 params.skip_count = true
 (bam_ch) = ( params.skip_count
