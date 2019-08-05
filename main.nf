@@ -262,7 +262,6 @@ process make_reference {
   """
     }
 
-
 process index {
 
   input:
