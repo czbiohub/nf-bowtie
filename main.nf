@@ -274,7 +274,7 @@ process index {
   """
   bowtie2-build $reference index
   """
-      }  }
+      }   }
 
 if(params.reference_type == 'embedded_folder'){
   Channel
