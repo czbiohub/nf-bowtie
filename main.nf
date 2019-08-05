@@ -229,10 +229,10 @@ process fastqc {
 
 
 if(params.reference_type == 'single_file'){
-fasta = Channel.fromPath(params.fasta)
+fasta = Channel.fromPath(params.reference)
  process index_single {
    tag "single file"
-   publishDir "./test4", pattern: 'index*'
+
    input:
    file fa from fasta
 
@@ -262,7 +262,6 @@ process make_reference {
   """
     }
 
-
 process index {
 
   input:
@@ -277,9 +276,9 @@ process index {
   """
       }  }
 
-if(params.reference_type == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
+if(params.reference_type == 'embedded_folder'){
   Channel
-    .fromPath("test-data/contigs/*", type:"dir")
+    .fromPath(params.reference, type:"dir")
     .map{ f -> tuple(f.name, file(f))}
     .set{ samples_ch }
 
@@ -295,7 +294,7 @@ if(params.reference_type == 'embedded_folder'){  params.samples = "$baseDir/test
 
     script:
     """
-    bowtie2-build "${params.samples}/${pair_id}/contigs.fasta" index_${pair_id}
+    bowtie2-build "${params.EF_path}/${pair_id}/contigs.fasta" index_${pair_id}
     """
         }
       }
