@@ -14,7 +14,7 @@ aws:
 	nextflow run main.nf -profile czbiohub_aws --skip_fastqc
 
 aws_resume:
-	nextflow run main.nf -profile czbiohub_aws -resume
+	nextflow run main.nf -profile czbiohub_aws -resume 
 
 test_EF:
 	nextflow run main.nf -profile docker --skip_fastqc --reference_type embedded_folder --reference './test-data/contigs/*' --outdir './results_EF'
