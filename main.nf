@@ -277,17 +277,15 @@ process index {
   """
       }  }
 
-params.samples = "$baseDir/test-data/contigs"
-params.reference = "$baseDir/test-data/contigs/*"
-if(params.reference_type == 'embedded_folder'){
+if(params.reference_type == 'embedded_folder'){  params.samples = "$baseDir/test-data/contigs"
   Channel
-    .fromPath(params.reference, type:"dir")
+    .fromPath("test-data/contigs/*", type:"dir")
     .map{ f -> tuple(f.name, file(f))}
     .set{ samples_ch }
 
   process index_folders {
     tag "${pair_id}"
-    publishDir "./test5", pattern: 'index_*'
+    publishDir "./test4", pattern: 'index_*'
 
     input:
     set val(pair_id) from samples_ch
@@ -397,7 +395,7 @@ params.skip_count = true
 
 process count_reads { //calling foo.py in folder... naming
   tag "$pair_id"
-  publishDir "${params.outdir}/counts", mode:'copy'
+  publishDir params.outdir, mode:'copy'
 
   input:
   set val(pair_id), file(bam) from bam_ch
