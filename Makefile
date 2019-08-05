@@ -11,7 +11,7 @@ local_resume:
 	nextflow run main.nf -profile docker -resume
 
 aws:
-	nextflow run main.nf -profile czbiohub_aws
+	nextflow run main.nf -profile czbiohub_aws --skip_fastqc
 
 aws_resume:
 	nextflow run main.nf -profile czbiohub_aws -resume
@@ -23,7 +23,7 @@ test_EF_aws:
 	nextflow run main.nf -profile czbiohub_aws --skip_fastqc --reference_type embedded_folder --reference './test-data/contigs/*'
 
 test_single:
-	nextflow run main.nf -profile docker --skip_fastqc --reference_type single_file --fasta './test-data/fasta/CMS002_004a_Rb_S117_L004_contigs_test.fasta'
+	nextflow run main.nf -profile docker --skip_fastqc --reference_type single_file --reference '/Users/kalani.ratnasiri/code/nf-core-bowtie/test-data/single/contigs.fasta'
 
 test_single_aws:
-	nextflow run main.nf -profile czbiohub_aws --skip_fastqc --reference_type single_file --outdir ./results3
+	nextflow run main.nf -profile czbiohub_aws --skip_fastqc --reference_type single_file --reference '/Users/kalani.ratnasiri/code/nf-core-bowtie/test-data/single/contigs.fasta'
