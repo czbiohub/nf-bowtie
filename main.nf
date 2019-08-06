@@ -284,7 +284,6 @@ if(params.reference_type == 'embedded_folder'){
 
   process index_folders {
     tag "${pair_id}"
-    publishDir "./test4", pattern: 'index_*'
 
     input:
     set val(pair_id) from samples_ch
@@ -348,7 +347,7 @@ process mapping {
 
 process bamify {
     tag "$pair_id"
-    publishDir params.outdir, mode:'copy'
+    publishDir "${params.outdir}/bam", mode:'copy'
 
     input:
     set val(pair_id), file(sam) from aligned_sam
@@ -394,7 +393,7 @@ params.skip_count = true
 
 process count_reads { //calling foo.py in folder... naming
   tag "$pair_id"
-  publishDir params.outdir, mode:'copy'
+  publishDir "${params.outdir}/counts", mode:'copy'
 
   input:
   set val(pair_id), file(bam) from bam_ch
