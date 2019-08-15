@@ -118,6 +118,14 @@ if(params.readPaths){
         .into { read_files_fastqc; read_files_trimming; input_ch  }
 }
 
+Channel.from(params.EF_path)
+  .map { row -> [ row[0], [file(row[1][0])]] }
+  .ifEmpty { exit 1, "params.readPaths was empty - no input files supplied" }
+  .into { contig_folder_ch; contig_folder_to_print }
+
+
+contig_folder_to_print
+  .subscribe{ println it }
 
 // Header log info
 log.info nfcoreHeader()
@@ -286,14 +294,15 @@ if(params.reference_type == 'embedded_folder'){
     tag "${pair_id}"
 
     input:
-    set val(pair_id) from samples_ch
+    val(pair_id) from samples_ch
+    set val(pair_id), file(contig_folder) from contig_folder_ch
 
     output:
     file 'index*' into index_ch, index2_ch
 
     script:
     """
-    bowtie2-build "${params.EF_path}/${pair_id}/contigs.fasta" index_${pair_id}
+    bowtie2-build "${contig_folder}/${pair_id}/contigs.fasta" index_${pair_id}
     """
         }
       }
