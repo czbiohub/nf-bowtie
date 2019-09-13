@@ -327,6 +327,7 @@ process mapping {
         --very-sensitive-local \\
         -S ${pair_id}.sam \\
         --no-unal \\
+        --al ${pair_id}_bowtie2_al_out.fastq \\
         2>&1 | tee ${pair_id}.log
     """
         } else {
@@ -338,6 +339,7 @@ process mapping {
             --very-sensitive-local \\
             -S ${pair_id}.sam \\
             --no-unal \\
+            --al ${pair_id}_bowtie2_al_out.fastq \\
             2>&1 | tee ${pair_id}.log
     """
         }
